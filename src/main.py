@@ -1,8 +1,7 @@
-import streamlit as st
-   
-   # Test to see if the app is working
-   st.title("Testing Real Estate Analytics App")
-   st.write("If you can see this, Streamlit is working!")
+import streamlit as st   
+# Test to see if the app is working
+st.title("Testing Real Estate Analytics App")
+st.write("If you can see this, Streamlit is working!")
 import streamlit as st
 import pandas as pd
 import os
