@@ -1,4 +1,11 @@
-import streamlit as st   
+import streamlit as st
+# This MUST be the first Streamlit command
+st.set_page_config(
+    # Keep your original page_config parameters here
+    page_title="Real Estate Analytics",
+    page_icon="🏠",
+    layout="wide"
+)
 # Test to see if the app is working
 st.title("Testing Real Estate Analytics App")
 st.write("If you can see this, Streamlit is working!")
