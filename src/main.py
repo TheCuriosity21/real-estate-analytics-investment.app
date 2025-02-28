@@ -1,26 +1,20 @@
 import streamlit as st
-# This MUST be the first Streamlit command
-st.set_page_config(
-    # Keep your original page_config parameters here
-    page_title="Real Estate Analytics",
-    page_icon="🏠",
-    layout="wide"
-)
-# Test to see if the app is working
-st.title("Testing Real Estate Analytics App")
-st.write("If you can see this, Streamlit is working!")
-import streamlit as st
 import pandas as pd
 import os
 import json
+import sys
 from datetime import datetime
 
+# Add the current directory to the path to find modules
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# Local module imports
 from property_analyzer import PropertyAnalyzer
 from financial_calculator import FinancialCalculator
 from risk_assessment import RiskAssessor
 from utils import load_data, save_data
 
-# Set page configuration
+# Set page configuration - MUST be the first Streamlit command
 st.set_page_config(
     page_title="Real Estate Investment Analyzer",
     page_icon="🏠",
@@ -59,15 +53,18 @@ st.markdown("""
 .risk-low {color: #388e3c;}
 </style>
 """, unsafe_allow_html=True)
-
 def main():
     st.markdown('<h1 class="main-header">Real Estate Investment Analyzer</h1>', unsafe_allow_html=True)
     
     # Sidebar for navigation
     st.sidebar.title("Navigation")
     
-    # Load saved properties
-    saved_properties = load_data()
+    # Load saved properties safely
+    try:
+        saved_properties = load_data()
+    except Exception as e:
+        st.sidebar.error(f"Error loading data: {str(e)}")
+        saved_properties = {}
     
     page = st.sidebar.selectbox(
         "Choose a section",
@@ -114,15 +111,18 @@ def main():
             st.session_state.property_data = saved_properties[selected_property]
             st.success(f"Loaded property: {selected_property}")
     
-    if page == "Property Input":
-        display_property_input()
-    elif page == "Financial Analysis":
-        display_financial_analysis()
-    elif page == "Risk Assessment":
-        display_risk_assessment()
-    elif page == "Investment Summary":
-        display_investment_summary()
-
+    try:
+        if page == "Property Input":
+            display_property_input()
+        elif page == "Financial Analysis":
+            display_financial_analysis()
+        elif page == "Risk Assessment":
+            display_risk_assessment()
+        elif page == "Investment Summary":
+            display_investment_summary()
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
+        st.warning("Please make sure all required information is filled in the Property Input section.")
 def display_property_input():
     st.markdown('<h2 class="section-header">Property Details</h2>', unsafe_allow_html=True)
     
@@ -250,5 +250,119 @@ def display_financial_analysis():
     total_roi_10year = calculator.calculate_roi(10)
     monthly_mortgage = calculator.calculate_mortgage_payment()
     break_even_point = calculator.calculate_break_even_point()
-    
+    def display_risk_assessment():
+        st.markdown('<h2 class="section-header">Risk Assessment</h2>', unsafe_allow_html=True)
+        
+        if not st.session_state.property_data['purchase_price']:
+            st.warning("Please enter property details in the Property Input section first.")
+            return
+        
+        # Create risk assessor instance
+        assessor = RiskAssessor(st.session_state.property_data)
+        
+        # Calculate risk scores
+        market_risk = assessor.assess_market_risk()
+        location_risk = assessor.assess_location_risk()
+        financial_risk = assessor.assess_financial_risk()
+        overall_risk = assessor.calculate_overall_risk()
+        
+        # Display risk scores
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("Risk Assessment Scores")
+            st.markdown(f"""
+            <div class="metric-card">
+                <h4>Market Risk: <span class="risk-{market_risk['level'].lower()}">{market_risk['level']} ({market_risk['score']}/10)</span></h4>
+                <p>{market_risk['description']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown(f"""
+            <div class="metric-card">
+                <h4>Location Risk: <span class="risk-{location_risk['level'].lower()}">{location_risk['level']} ({location_risk['score']}/10)</span></h4>
+                <p>{location_risk['description']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown(f"""
+            <div class="metric-card">
+                <h4>Financial Risk: <span class="risk-{financial_risk['level'].lower()}">{financial_risk['level']} ({financial_risk['score']}/10)</span></h4>
+                <p>{financial_risk['description']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.subheader("Overall Investment Risk")
+            
+            # Create a gauge chart for overall risk
+            fig = {
+                "data": [
+                    {
+                        "type": "indicator",
+                        "mode": "gauge+number",
+                        "value": overall_risk['score'],
+                        "title": {"text": f"Overall Risk: {overall_risk['level']}"},
+                        "gauge": {
+                            "axis": {"range": [0, 10]},
+                            "bar": {"color": "darkgray"},
+                            "steps": [
+                                {"range": [0, 3.33], "color": "green"},
+                                {"range": [3.33, 6.66], "color": "orange"},
+                                {"range": [6.66, 10], "color": "red"},
+                            ],
+                            "threshold": {
+                                "line": {"color": "black", "width": 4},
+                                "thickness": 0.75,
+                                "value": overall_risk['score'],
+                            },
+                        },
+                    }
+                ],
+                "layout": {"height": 300, "margin": {"t": 25, "b": 0, "l": 25, "r": 25}},
+            }
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+            st.markdown(f"""
+            <div class="recommendation">
+                <h4>Risk Assessment Summary</h4>
+                <p>{overall_risk['description']}</p>
+                <h4>Recommendation</h4>
+                <p>{assessor.get_investment_recommendation()}</p>
+            </div>
+            """, unsafe_allow_html=True)
 
+    def display_investment_summary():
+        st.markdown('<h2 class="section-header">Investment Summary</h2>', unsafe_allow_html=True)
+        
+        if not st.session_state.property_data['purchase_price']:
+            st.warning("Please enter property details in the Property Input section first.")
+            return
+        
+        # Create instances
+        calculator = FinancialCalculator(st.session_state.property_data)
+        assessor = RiskAssessor(st.session_state.property_data)
+        analyzer = PropertyAnalyzer(st.session_state.property_data)
+        
+        # Financial metrics
+        monthly_cash_flow = calculator.calculate_monthly_cash_flow()
+        annual_cash_flow = calculator.calculate_annual_cash_flow()
+        cap_rate = calculator.calculate_cap_rate()
+        cash_on_cash_return = calculator.calculate_cash_on_cash_return()
+        roi_5yr = calculator.calculate_roi(5)
+        
+        # Risk assessment
+        overall_risk = assessor.calculate_overall_risk()
+        
+        # Property analysis
+        property_score = analyzer.calculate_property_score()
+        
+        # Property details
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("Property Overview")
+            st.markdown(f"""
+            <div class="metric-card">
+                <b>Address:</b> {st.session_state.property_data['
